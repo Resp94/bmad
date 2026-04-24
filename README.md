@@ -55,7 +55,7 @@ npm install
 Ainda dentro da pasta `dashboard`, inicie o servidor:
 
 ```bash
-npm run dev
+npm run bmad:dashboard
 ```
 
 Pronto! Agora abra o seu navegador e acesse **`http://localhost:3105`**. O escritório virtual carregará e a equipe estará em suas mesas, prontas e aguardando ordens.

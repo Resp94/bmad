@@ -204,18 +204,56 @@
 
         @keyframes float-icon { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
 
-        /* ── SFX MUTE BUTTON ── */
-        #sfx-toggle {
-            position: absolute; bottom: 110px; right: 10px;
-            z-index: 200;
-            background: rgba(0,0,0,0.75); border: 2px solid #555;
+        /* ── BOTOES DO GAME CONTAINER ── */
+        .game-btn {
+            position: absolute; z-index: 200;
+            width: 32px; height: 32px;
+            background: rgba(0,0,0,0.8); border: 2px solid #00E676;
             color: #888; font-family: 'Press Start 2P', cursive; font-size: 14px;
-            padding: 6px 8px; cursor: pointer; border-radius: 4px;
-            transition: border-color 0.2s, color 0.2s;
-            line-height: 1;
+            cursor: pointer; border-radius: 4px;
+            transition: background-color 0.2s, color 0.2s;
+            line-height: 32px; text-align: center; padding: 0;
+            display: flex; align-items: center; justify-content: center;
         }
-        #sfx-toggle:hover { border-color: #00E676; color: #FFF; }
-        #sfx-toggle.active { border-color: #00E676; color: #00E676; }
+        .game-btn:hover { background: rgba(0,230,118,0.15); color: #FFF; }
+        .game-btn.active { background: rgba(0,230,118,0.25); color: #00E676; }
+        #sfx-toggle { top: 10px; right: 10px; }
+        #btn-maximize { top: 50px; right: 10px; }
+        #btn-fullscreen { top: 90px; right: 10px; }
+
+        /* ── MODO MAXIMIZADO (preenche a viewport do navegador) ── */
+        body.maximized #wrapper {
+            position: fixed; top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            z-index: 9999; gap: 0;
+        }
+        body.maximized #game-container {
+            width: 100%; height: 100%;
+            border: none; border-radius: 0;
+            box-shadow: none;
+        }
+        body.maximized #chat-panel { display: none; }
+        body.maximized .game-btn { position: fixed; }
+
+        /* ── ANIMACOES DE TELEPORTE (sala de reuniao) ── */
+        @keyframes teleport-out {
+            0%   { opacity: 1; filter: brightness(1); }
+            50%  { opacity: 1; filter: brightness(4) drop-shadow(0 0 12px #00E676); }
+            100% { opacity: 0; filter: brightness(6); }
+        }
+        @keyframes teleport-in {
+            0%   { opacity: 0; filter: brightness(6); }
+            50%  { opacity: 1; filter: brightness(4) drop-shadow(0 0 12px #00E676); }
+            100% { opacity: 1; filter: brightness(1); }
+        }
+        .workspace.teleporting-out {
+            animation: teleport-out 0.35s ease-in forwards;
+            pointer-events: none;
+        }
+        .workspace.teleporting-in {
+            animation: teleport-in 0.35s ease-out forwards;
+            pointer-events: none;
+        }
     </style>
 </head>
 <body>
@@ -228,7 +266,9 @@
             <div id="dialog-box">
                 <p id="dialog-text">Infinity Squad pronto para trabalhar, dê seu comando</p>
             </div>
-            <button id="sfx-toggle" title="Ativar/Desativar Sons">🔇</button>
+            <button id="sfx-toggle" class="game-btn" title="Ativar/Desativar Sons">🔇</button>
+            <button id="btn-maximize" class="game-btn" title="Maximizar no navegador">🔲</button>
+            <button id="btn-fullscreen" class="game-btn" title="Tela cheia">⛶</button>
         </div>
         <div id="chat-panel">
             <div id="chat-header">▶ INFINITY COMMS</div>
@@ -324,6 +364,17 @@
                         playTone(330, 0.25, 'sine', 0.04, 0);
                         playTone(392, 0.25, 'sine', 0.03, 0);
                     }
+                },
+
+                // Efeito sonoro de teleporte (som sci-fi 8-bit)
+                teleport() {
+                    if (muted) return;
+                    // Sweep ascendente rapido
+                    for (let i = 0; i < 6; i++) {
+                        playTone(200 + i * 150, 0.06, 'square', 0.04, i * 0.04);
+                    }
+                    // Flash final
+                    playTone(1200, 0.15, 'sine', 0.06, 0.25);
                 }
             };
         })();
@@ -387,23 +438,130 @@
                 workspace.appendChild(uiLayer);
                 workspacesLayer.appendChild(workspace);
                 
-                agentElements[a.id] = { agentEl, status: 'idle' };
+                agentElements[a.id] = { agentEl, status: 'idle', workspace, originalX: a.x, originalY: a.y, inMeeting: false };
             });
+        }
+
+        // ── SALA DE REUNIAO (posicoes DENTRO da sala de vidro do Boss) ──
+        // A sala de vidro ocupa aprox. x:35-65, y:12-32. Boss esta em x:50, y:25.
+        const meetingPositions = [
+            { x: 38, y: 22 },  // esquerda do Boss
+            { x: 62, y: 22 },  // direita do Boss
+            { x: 38, y: 30 },  // frente esquerda
+            { x: 62, y: 30 },  // frente direita
+            { x: 50, y: 32 },  // frente centro
+            { x: 42, y: 15 },  // atras esquerda
+            { x: 58, y: 15 },  // atras direita
+            { x: 45, y: 28 },  // centro esquerda
+            { x: 55, y: 28 },  // centro direita
+        ];
+        const meetingOccupied = {};
+
+        function getActiveAgentIds() {
+            return Object.entries(agentElements)
+                .filter(([id, a]) => (a.status === 'working' || a.status === 'waiting') && id !== 'boos')
+                .map(([id]) => id);
+        }
+
+        function getFreeMeetingPosition() {
+            const usedIndexes = new Set(Object.values(meetingOccupied));
+            for (let i = 0; i < meetingPositions.length; i++) {
+                if (!usedIndexes.has(i)) return i;
+            }
+            return 0;
+        }
+
+        function teleportToMeeting(id) {
+            const a = agentElements[id];
+            if (!a || a.inMeeting) return;
+
+            const posIndex = getFreeMeetingPosition();
+            meetingOccupied[id] = posIndex;
+            const target = meetingPositions[posIndex];
+
+            sfx.teleport();
+
+            // Flash out -> reposicionar (invisivel) -> flash in
+            a.workspace.classList.add('teleporting-out');
+            setTimeout(() => {
+                a.workspace.classList.remove('teleporting-out');
+                a.workspace.style.left = target.x + '%';
+                a.workspace.style.top = target.y + '%';
+                a.inMeeting = true;
+                a.workspace.classList.add('teleporting-in');
+                sfx.teleport();
+                setTimeout(() => {
+                    a.workspace.classList.remove('teleporting-in');
+                }, 350);
+            }, 350);
+        }
+
+        function teleportToDesk(id) {
+            const a = agentElements[id];
+            if (!a || !a.inMeeting) return;
+
+            delete meetingOccupied[id];
+            sfx.teleport();
+
+            a.workspace.classList.add('teleporting-out');
+            setTimeout(() => {
+                a.workspace.classList.remove('teleporting-out');
+                a.workspace.style.left = a.originalX + '%';
+                a.workspace.style.top = a.originalY + '%';
+                a.inMeeting = false;
+                a.workspace.classList.add('teleporting-in');
+                setTimeout(() => {
+                    a.workspace.classList.remove('teleporting-in');
+                }, 350);
+            }, 350);
+        }
+
+        function checkMeetingRoom() {
+            const activeIds = getActiveAgentIds();
+
+            if (activeIds.length >= 2) {
+                activeIds.forEach(id => {
+                    if (!agentElements[id].inMeeting) {
+                        teleportToMeeting(id);
+                    }
+                });
+            }
+
+            if (activeIds.length < 2) {
+                Object.keys(meetingOccupied).forEach(id => {
+                    teleportToDesk(id);
+                });
+            }
         }
 
         function updateZoom() {
             const scene = document.getElementById('scene');
+            const activeIds = getActiveAgentIds();
+
+            // Se 2+ agentes ativos (reuniao), centralizar na sala do Boss
+            if (activeIds.length >= 2) {
+                scene.style.transformOrigin = '50% 25%';
+                scene.style.transform = 'scale(1.8)';
+                return;
+            }
+
+            // Se 1 agente ativo, centralizar nele
             const activeEntry = Object.entries(agentElements).find(([id, a]) => a.status === 'working' || a.status === 'waiting');
             if (activeEntry) {
                 const [id, a] = activeEntry;
-                const agentData = agentsData.find(ad => ad.id === id);
-                if (agentData) {
-                    scene.style.transformOrigin = `${agentData.x}% ${agentData.y}%`;
-                    scene.style.transform = `scale(1.8)`;
+                // Se esta na reuniao ainda (voltando), usar posicao do Boss
+                if (a.inMeeting) {
+                    scene.style.transformOrigin = '50% 25%';
+                } else {
+                    const agentData = agentsData.find(ad => ad.id === id);
+                    if (agentData) {
+                        scene.style.transformOrigin = `${agentData.x}% ${agentData.y}%`;
+                    }
                 }
+                scene.style.transform = 'scale(1.8)';
             } else {
-                scene.style.transformOrigin = `50% 50%`;
-                scene.style.transform = `scale(1)`;
+                scene.style.transformOrigin = '50% 50%';
+                scene.style.transform = 'scale(1)';
             }
         }
 
@@ -438,6 +596,9 @@
             }
 
             updateZoom();
+
+            // Verificar se precisa ativar/desativar a sala de reuniao
+            checkMeetingRoom();
 
             if (message) {
                 // Deduplicação: evita mensagem idêntica consecutiva
@@ -513,6 +674,40 @@
 
         sfx.init();
         initScene();
+
+        // ── MODOS DE VISUALIZACAO ──
+        // Maximizar: expande o game na area do navegador (esconde chat, mantem barra de endereco)
+        document.getElementById('btn-maximize').addEventListener('click', () => {
+            document.body.classList.toggle('maximized');
+            const btn = document.getElementById('btn-maximize');
+            const isMax = document.body.classList.contains('maximized');
+            btn.classList.toggle('active', isMax);
+            btn.title = isMax ? 'Restaurar layout original' : 'Expandir na aba do navegador';
+        });
+
+        // Tela Cheia: F11 real — esconde barra de endereco, taskbar, tudo
+        document.getElementById('btn-fullscreen').addEventListener('click', () => {
+            if (!document.fullscreenElement) {
+                // Entrar em tela cheia: maximiza automaticamente tambem
+                if (!document.body.classList.contains('maximized')) {
+                    document.getElementById('btn-maximize').click();
+                }
+                document.documentElement.requestFullscreen().catch(() => {});
+            } else {
+                document.exitFullscreen().catch(() => {});
+            }
+        });
+
+        // Quando sai do fullscreen (ESC ou clique), restaura tudo
+        document.addEventListener('fullscreenchange', () => {
+            const btn = document.getElementById('btn-fullscreen');
+            const isFull = !!document.fullscreenElement;
+            btn.classList.toggle('active', isFull);
+            // Ao sair do fullscreen, tambem restaura o layout original
+            if (!isFull && document.body.classList.contains('maximized')) {
+                document.getElementById('btn-maximize').click();
+            }
+        });
     </script>
 </body>
 </html>

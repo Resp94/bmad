@@ -204,18 +204,20 @@
 
         @keyframes float-icon { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
 
-        /* ── SFX MUTE BUTTON ── */
-        #sfx-toggle {
-            position: absolute; bottom: 110px; right: 10px;
-            z-index: 200;
-            background: rgba(0,0,0,0.75); border: 2px solid #555;
+        /* ── BOTOES DO GAME CONTAINER ── */
+        .game-btn {
+            position: absolute; z-index: 200;
+            width: 32px; height: 32px;
+            background: rgba(0,0,0,0.8); border: 2px solid #00E676;
             color: #888; font-family: 'Press Start 2P', cursive; font-size: 14px;
-            padding: 6px 8px; cursor: pointer; border-radius: 4px;
-            transition: border-color 0.2s, color 0.2s;
-            line-height: 1;
+            cursor: pointer; border-radius: 4px;
+            transition: background-color 0.2s, color 0.2s;
+            line-height: 32px; text-align: center; padding: 0;
+            display: flex; align-items: center; justify-content: center;
         }
-        #sfx-toggle:hover { border-color: #00E676; color: #FFF; }
-        #sfx-toggle.active { border-color: #00E676; color: #00E676; }
+        .game-btn:hover { background: rgba(0,230,118,0.15); color: #FFF; }
+        .game-btn.active { background: rgba(0,230,118,0.25); color: #00E676; }
+        #sfx-toggle { top: 10px; right: 10px; }
 
         /* ── ANIMACOES DE TELEPORTE (sala de reuniao) ── */
         @keyframes teleport-out {
@@ -252,7 +254,7 @@
             <div id="dialog-box">
                 <p id="dialog-text">Infinity Squad pronto para trabalhar, dê seu comando</p>
             </div>
-            <button id="sfx-toggle" title="Ativar/Desativar Sons">🔇</button>
+            <button id="sfx-toggle" class="game-btn" title="Ativar/Desativar Sons">🔇</button>
         </div>
         <div id="chat-panel">
             <div id="chat-header">▶ INFINITY COMMS</div>

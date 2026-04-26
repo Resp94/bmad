@@ -237,26 +237,22 @@
 
         /* ── ANIMACOES DE TELEPORTE (sala de reuniao) ── */
         @keyframes teleport-out {
-            0%   { transform: scale(1); opacity: 1; filter: brightness(1); }
-            40%  { transform: scale(1.3); opacity: 1; filter: brightness(3) drop-shadow(0 0 8px #00E676); }
-            100% { transform: scale(0); opacity: 0; filter: brightness(5); }
+            0%   { opacity: 1; filter: brightness(1); }
+            50%  { opacity: 1; filter: brightness(4) drop-shadow(0 0 12px #00E676); }
+            100% { opacity: 0; filter: brightness(6); }
         }
         @keyframes teleport-in {
-            0%   { transform: scale(0); opacity: 0; filter: brightness(5); }
-            60%  { transform: scale(1.3); opacity: 1; filter: brightness(3) drop-shadow(0 0 8px #00E676); }
-            100% { transform: scale(1); opacity: 1; filter: brightness(1); }
+            0%   { opacity: 0; filter: brightness(6); }
+            50%  { opacity: 1; filter: brightness(4) drop-shadow(0 0 12px #00E676); }
+            100% { opacity: 1; filter: brightness(1); }
         }
         .workspace.teleporting-out {
-            animation: teleport-out 0.4s ease-in forwards;
+            animation: teleport-out 0.35s ease-in forwards;
             pointer-events: none;
         }
         .workspace.teleporting-in {
-            animation: teleport-in 0.4s ease-out forwards;
+            animation: teleport-in 0.35s ease-out forwards;
             pointer-events: none;
-        }
-        /* Transicao suave de posicao para quando o workspace eh reposicionado */
-        .workspace {
-            transition: left 0s, top 0s;
         }
     </style>
 </head>
@@ -446,20 +442,20 @@
             });
         }
 
-        // ── SALA DE REUNIAO (posicoes ao redor da mesa central) ──
-        // Posicoes em % relativas ao #workspaces-layer, distribuidas ao redor da mesa do Boss
+        // ── SALA DE REUNIAO (posicoes DENTRO da sala de vidro do Boss) ──
+        // A sala de vidro ocupa aprox. x:35-65, y:12-32. Boss esta em x:50, y:25.
         const meetingPositions = [
-            { x: 30, y: 33 },  // esquerda superior
-            { x: 70, y: 33 },  // direita superior
-            { x: 25, y: 50 },  // esquerda meio
-            { x: 75, y: 50 },  // direita meio
-            { x: 30, y: 60 },  // esquerda inferior
-            { x: 70, y: 60 },  // direita inferior
-            { x: 40, y: 55 },  // centro esquerda
-            { x: 60, y: 55 },  // centro direita
-            { x: 50, y: 60 },  // centro baixo
+            { x: 38, y: 22 },  // esquerda do Boss
+            { x: 62, y: 22 },  // direita do Boss
+            { x: 38, y: 30 },  // frente esquerda
+            { x: 62, y: 30 },  // frente direita
+            { x: 50, y: 32 },  // frente centro
+            { x: 42, y: 15 },  // atras esquerda
+            { x: 58, y: 15 },  // atras direita
+            { x: 45, y: 28 },  // centro esquerda
+            { x: 55, y: 28 },  // centro direita
         ];
-        const meetingOccupied = {};  // id -> posicao index
+        const meetingOccupied = {};
 
         function getActiveAgentIds() {
             return Object.entries(agentElements)
@@ -472,7 +468,7 @@
             for (let i = 0; i < meetingPositions.length; i++) {
                 if (!usedIndexes.has(i)) return i;
             }
-            return 0; // fallback
+            return 0;
         }
 
         function teleportToMeeting(id) {
@@ -485,24 +481,19 @@
 
             sfx.teleport();
 
-            // Fase 1: teleport-out no desk atual
+            // Flash out -> reposicionar (invisivel) -> flash in
             a.workspace.classList.add('teleporting-out');
-            a.workspace.addEventListener('animationend', function handler() {
-                a.workspace.removeEventListener('animationend', handler);
+            setTimeout(() => {
                 a.workspace.classList.remove('teleporting-out');
-
-                // Reposicionar na mesa de reuniao
                 a.workspace.style.left = target.x + '%';
                 a.workspace.style.top = target.y + '%';
                 a.inMeeting = true;
-
-                // Fase 2: teleport-in na mesa de reuniao
                 a.workspace.classList.add('teleporting-in');
-                a.workspace.addEventListener('animationend', function handler2() {
-                    a.workspace.removeEventListener('animationend', handler2);
+                sfx.teleport();
+                setTimeout(() => {
                     a.workspace.classList.remove('teleporting-in');
-                }, { once: true });
-            }, { once: true });
+                }, 350);
+            }, 350);
         }
 
         function teleportToDesk(id) {
@@ -512,30 +503,22 @@
             delete meetingOccupied[id];
             sfx.teleport();
 
-            // Fase 1: teleport-out na mesa de reuniao
             a.workspace.classList.add('teleporting-out');
-            a.workspace.addEventListener('animationend', function handler() {
-                a.workspace.removeEventListener('animationend', handler);
+            setTimeout(() => {
                 a.workspace.classList.remove('teleporting-out');
-
-                // Reposicionar no desk original
                 a.workspace.style.left = a.originalX + '%';
                 a.workspace.style.top = a.originalY + '%';
                 a.inMeeting = false;
-
-                // Fase 2: teleport-in no desk
                 a.workspace.classList.add('teleporting-in');
-                a.workspace.addEventListener('animationend', function handler2() {
-                    a.workspace.removeEventListener('animationend', handler2);
+                setTimeout(() => {
                     a.workspace.classList.remove('teleporting-in');
-                }, { once: true });
-            }, { once: true });
+                }, 350);
+            }, 350);
         }
 
         function checkMeetingRoom() {
             const activeIds = getActiveAgentIds();
 
-            // Se 2+ agentes ativos, mover quem nao esta na reuniao pra la
             if (activeIds.length >= 2) {
                 activeIds.forEach(id => {
                     if (!agentElements[id].inMeeting) {
@@ -544,7 +527,6 @@
                 });
             }
 
-            // Se sobrou 1 ou 0 agentes ativos, quem esta na reuniao volta pro desk
             if (activeIds.length < 2) {
                 Object.keys(meetingOccupied).forEach(id => {
                     teleportToDesk(id);
@@ -554,17 +536,32 @@
 
         function updateZoom() {
             const scene = document.getElementById('scene');
+            const activeIds = getActiveAgentIds();
+
+            // Se 2+ agentes ativos (reuniao), centralizar na sala do Boss
+            if (activeIds.length >= 2) {
+                scene.style.transformOrigin = '50% 25%';
+                scene.style.transform = 'scale(1.8)';
+                return;
+            }
+
+            // Se 1 agente ativo, centralizar nele
             const activeEntry = Object.entries(agentElements).find(([id, a]) => a.status === 'working' || a.status === 'waiting');
             if (activeEntry) {
                 const [id, a] = activeEntry;
-                const agentData = agentsData.find(ad => ad.id === id);
-                if (agentData) {
-                    scene.style.transformOrigin = `${agentData.x}% ${agentData.y}%`;
-                    scene.style.transform = `scale(1.8)`;
+                // Se esta na reuniao ainda (voltando), usar posicao do Boss
+                if (a.inMeeting) {
+                    scene.style.transformOrigin = '50% 25%';
+                } else {
+                    const agentData = agentsData.find(ad => ad.id === id);
+                    if (agentData) {
+                        scene.style.transformOrigin = `${agentData.x}% ${agentData.y}%`;
+                    }
                 }
+                scene.style.transform = 'scale(1.8)';
             } else {
-                scene.style.transformOrigin = `50% 50%`;
-                scene.style.transform = `scale(1)`;
+                scene.style.transformOrigin = '50% 50%';
+                scene.style.transform = 'scale(1)';
             }
         }
 

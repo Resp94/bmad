@@ -216,6 +216,43 @@
         }
         #sfx-toggle:hover { border-color: #00E676; color: #FFF; }
         #sfx-toggle.active { border-color: #00E676; color: #00E676; }
+
+        /* ── BOTOES DE VISUALIZACAO (Maximizar / Tela Cheia) ── */
+        .view-btn {
+            position: absolute; z-index: 200;
+            background: rgba(0,0,0,0.75); border: 2px solid #555;
+            color: #888; font-family: 'Press Start 2P', cursive; font-size: 14px;
+            padding: 6px 8px; cursor: pointer; border-radius: 4px;
+            transition: border-color 0.2s, color 0.2s;
+            line-height: 1;
+        }
+        .view-btn:hover { border-color: #00E676; color: #FFF; }
+        .view-btn.active { border-color: #00E676; color: #00E676; }
+
+        #btn-maximize { bottom: 110px; left: 10px; }
+        #btn-fullscreen { bottom: 140px; left: 10px; }
+
+        /* ── MODO MAXIMIZADO (preenche a viewport do navegador) ── */
+        body.maximized #wrapper {
+            position: fixed; top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            z-index: 9999; gap: 0;
+        }
+        body.maximized #game-container {
+            width: 100%; height: 100%;
+            border: none; border-radius: 0;
+            box-shadow: none;
+        }
+        body.maximized #chat-panel { display: none; }
+        body.maximized #btn-maximize { bottom: 110px; left: 10px; }
+        body.maximized #btn-fullscreen { bottom: 140px; left: 10px; }
+        body.maximized #sfx-toggle { bottom: 80px; left: 10px; right: auto; }
+
+        /* Reposicionar botoes no modo maximizado para canto inferior esquerdo */
+        body.maximized .view-btn,
+        body.maximized #sfx-toggle {
+            position: fixed;
+        }
     </style>
 </head>
 <body>
@@ -229,6 +266,8 @@
                 <p id="dialog-text">Infinity Squad pronto para trabalhar, dê seu comando</p>
             </div>
             <button id="sfx-toggle" title="Ativar/Desativar Sons">🔇</button>
+            <button id="btn-maximize" class="view-btn" title="Maximizar no navegador">🔲</button>
+            <button id="btn-fullscreen" class="view-btn" title="Tela cheia">⛶</button>
         </div>
         <div id="chat-panel">
             <div id="chat-header">▶ INFINITY COMMS</div>
@@ -513,6 +552,40 @@
 
         sfx.init();
         initScene();
+
+        // ── MODOS DE VISUALIZACAO ──
+        // Maximizar: preenche a viewport do navegador, esconde o chat
+        document.getElementById('btn-maximize').addEventListener('click', () => {
+            document.body.classList.toggle('maximized');
+            const btn = document.getElementById('btn-maximize');
+            const isMax = document.body.classList.contains('maximized');
+            btn.classList.toggle('active', isMax);
+            btn.textContent = isMax ? '🔳' : '🔲';
+            btn.title = isMax ? 'Restaurar tamanho original' : 'Maximizar no navegador';
+        });
+
+        // Tela cheia: usa a Fullscreen API do navegador
+        document.getElementById('btn-fullscreen').addEventListener('click', () => {
+            const btn = document.getElementById('btn-fullscreen');
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(() => {});
+            } else {
+                document.exitFullscreen().catch(() => {});
+            }
+        });
+
+        // Atualizar icone do botao quando o usuario sai do fullscreen via ESC
+        document.addEventListener('fullscreenchange', () => {
+            const btn = document.getElementById('btn-fullscreen');
+            const isFull = !!document.fullscreenElement;
+            btn.classList.toggle('active', isFull);
+            btn.textContent = isFull ? '⛶' : '⛶';
+            btn.title = isFull ? 'Sair da tela cheia' : 'Tela cheia';
+            // Ativar maximizado automaticamente ao entrar em fullscreen
+            if (isFull && !document.body.classList.contains('maximized')) {
+                document.getElementById('btn-maximize').click();
+            }
+        });
     </script>
 </body>
 </html>

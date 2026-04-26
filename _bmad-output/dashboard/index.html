@@ -216,6 +216,66 @@
         }
         #sfx-toggle:hover { border-color: #00E676; color: #FFF; }
         #sfx-toggle.active { border-color: #00E676; color: #00E676; }
+
+        /* ── POKEDEX MODAL ── */
+        .agent-clickable { cursor: pointer; }
+        .agent-clickable:hover { filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.8)); }
+        
+        @keyframes hit-flash {
+            0% { filter: brightness(1); }
+            50% { filter: brightness(2) contrast(0) grayscale(1) invert(1); }
+            100% { filter: brightness(1); }
+        }
+        .hit-flash { animation: hit-flash 0.15s ease-out; }
+
+        #pokedex-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.6); z-index: 100;
+            display: flex; justify-content: center; align-items: center;
+            opacity: 0; pointer-events: none; transition: opacity 0.2s;
+        }
+        #pokedex-overlay.active { opacity: 1; pointer-events: auto; }
+        
+        #pokedex-card {
+            width: 400px; background-color: #f8f8f0;
+            border: 4px solid #333; border-radius: 8px;
+            box-shadow: 4px 4px 0 #111, inset -4px -4px 0 rgba(0,0,0,0.1);
+            padding: 16px; position: relative;
+            transform: scale(0.9); transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        #pokedex-overlay.active #pokedex-card { transform: scale(1); }
+        
+        .pk-close {
+            position: absolute; top: -12px; right: -12px;
+            background: #e63946; color: white; border: 3px solid #333;
+            width: 32px; height: 32px; border-radius: 50%;
+            font-size: 14px; display: flex; justify-content: center; align-items: center;
+            cursor: pointer; box-shadow: 2px 2px 0 #111;
+        }
+        .pk-close:hover { background: #ff4d5a; }
+        .pk-close:active { transform: translate(2px, 2px); box-shadow: 0 0 0 #111; }
+        
+        .pk-header { display: flex; justify-content: space-between; border-bottom: 2px dashed #ccc; padding-bottom: 8px; margin-bottom: 12px; }
+        .pk-name { color: #333; font-size: 16px; margin: 0; }
+        .pk-role { color: #666; font-size: 10px; padding-top: 4px; }
+        
+        .pk-body { display: flex; gap: 16px; }
+        .pk-sprite-box {
+            width: 96px; height: 96px; background: #e0e0d8; border: 2px solid #ccc;
+            border-radius: 4px; display: flex; justify-content: center; align-items: center;
+            box-shadow: inset 2px 2px 4px rgba(0,0,0,0.1);
+        }
+        .pk-sprite-box div { width: 64px; height: 64px; background-size: 200% 100%; image-rendering: pixelated; }
+        
+        .pk-stats { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 8px; }
+        .pk-stat-row { font-size: 8px; color: #444; display: flex; justify-content: space-between; align-items: center; }
+        .pk-stat-bar { color: #00E676; letter-spacing: -1px; text-shadow: 1px 1px 0 #000; }
+        
+        .pk-bio {
+            margin-top: 16px; padding: 12px; background: #333; color: #00E676;
+            border-radius: 4px; border: 2px solid #111; min-height: 60px;
+            font-size: 9px; line-height: 1.6;
+        }
     </style>
 </head>
 <body>
@@ -229,6 +289,22 @@
                 <p id="dialog-text">Infinity Squad pronto para trabalhar, dê seu comando</p>
             </div>
             <button id="sfx-toggle" title="Ativar/Desativar Sons">🔇</button>
+            
+            <!-- POKEDEX OVERLAY -->
+            <div id="pokedex-overlay">
+                <div id="pokedex-card">
+                    <div class="pk-close" onclick="closePokedex()">X</div>
+                    <div class="pk-header">
+                        <h2 class="pk-name" id="pk-name-text">Nome</h2>
+                        <div class="pk-role" id="pk-role-text">Role</div>
+                    </div>
+                    <div class="pk-body">
+                        <div class="pk-sprite-box"><div id="pk-sprite-img"></div></div>
+                        <div class="pk-stats" id="pk-stats-container"></div>
+                    </div>
+                    <div class="pk-bio" id="pk-bio-text"></div>
+                </div>
+            </div>
         </div>
         <div id="chat-panel">
             <div id="chat-header">▶ INFINITY COMMS</div>
@@ -330,16 +406,16 @@
         
         // ... (agentsData mapping remains same) ...
         const agentsData = [
-            { id: 'boos', name: "BOOS", role: "Leader", image: 'Boos (1).png', x: 50, y: 25, desk: 'PA - Boos (1).png' },
-            { id: 'mary', name: "Mary", role: "Analyst", image: 'mary (1).png', x: 10, y: 33, desk: 'PA (1).png' },
-            { id: 'amelia', name: "Amelia", role: "Dev", image: 'Amelia (1).png', x: 30, y: 33, desk: 'PA (1).png' },
-            { id: 'john', name: "John", role: "PM", image: 'John (1).png', x: 70, y: 33, desk: 'PA (1).png' },
-            { id: 'paige', name: "Paige", role: "Writer", image: 'Paige (1).png', x: 90, y: 36, desk: 'PA (1).png' },
-            { id: 'winston', name: "Winston", role: "Architect", image: 'Winston (1).png', x: 10, y: 68, desk: 'PA (1).png' },
-            { id: 'quinn', name: "Quinn", role: "QA", image: 'Quin (1).png', x: 30, y: 68, desk: 'PA (1).png' },
-            { id: 'bob', name: "Bob", role: "SM", image: 'Bob (1).png', x: 50, y: 68, desk: 'PA (1).png' },
-            { id: 'barry', name: "Barry", role: "Quick Dev", image: 'Barry (1).png', x: 70, y: 68, desk: 'PA (1).png' },
-            { id: 'sally', name: "Sally", role: "Designer", image: 'Sally (1).png', x: 90, y: 68, desk: 'PA (1).png' }
+            { id: 'boos', name: "BOOS", role: "Leader", image: 'Boos (1).png', x: 50, y: 25, desk: 'PA - Boos (1).png', bio: "A lenda urbana. Dizem que ele aprova PRs apenas com o poder do pensamento.", stats: { "Liderança": 99, "Visão": 95, "Paciência": 40 } },
+            { id: 'mary', name: "Mary", role: "Analyst", image: 'mary (1).png', x: 10, y: 33, desk: 'PA (1).png', bio: "Lê matrizes de risco no café da manhã. Se os dados não batem, ela faz baterem.", stats: { "Foco": 90, "Planilhas": 99, "Sono": 30 } },
+            { id: 'amelia', name: "Amelia", role: "Dev", image: 'Amelia (1).png', x: 30, y: 33, desk: 'PA (1).png', bio: "Transforma cafeína em código. Ouve Lofi 24/7 e detesta reuniões que poderiam ser um email.", stats: { "Código": 95, "Fones": 100, "Social": 15 } },
+            { id: 'john', name: "John", role: "PM", image: 'John (1).png', x: 70, y: 33, desk: 'PA (1).png', bio: "Mestre do cronograma. Consegue encaixar 'só mais uma task' em qualquer sprint.", stats: { "Organização": 90, "Cobrança": 95, "Empatia": 50 } },
+            { id: 'paige', name: "Paige", role: "Writer", image: 'Paige (1).png', x: 90, y: 36, desk: 'PA (1).png', bio: "A dona das palavras. Corrige os erros de português do squad até nos comentários do código.", stats: { "Vocabulário": 99, "Documentos": 95, "Tolerância": 0 } },
+            { id: 'winston', name: "Winston", role: "Architect", image: 'Winston (1).png', x: 10, y: 68, desk: 'PA (1).png', bio: "Desenha sistemas tão complexos que só ele e Deus entendem. Às vezes, só Deus.", stats: { "Escalabilidade": 98, "Diagramas": 95, "Simples": 10 } },
+            { id: 'quinn', name: "Quinn", role: "QA", image: 'Quin (1).png', x: 30, y: 68, desk: 'PA (1).png', bio: "O pesadelo dos Devs. Encontra bugs onde não existe nem código ainda.", stats: { "Detalhe": 99, "Quebrar Tudo": 95, "Amigos Devs": 20 } },
+            { id: 'bob', name: "Bob", role: "SM", image: 'Bob (1).png', x: 50, y: 68, desk: 'PA (1).png', bio: "Pregador da religião Ágil. Se você não fez a Daily, o Bob sabe. Ele sempre sabe.", stats: { "Scrum": 99, "Post-its": 100, "Impedimentos": 0 } },
+            { id: 'barry', name: "Barry", role: "Quick Dev", image: 'Barry (1).png', x: 70, y: 68, desk: 'PA (1).png', bio: "Programa mais rápido que a própria sombra. A gambiarra é temporária (até ir pra produção).", stats: { "Velocidade": 99, "Gambiarra": 85, "Testes": 5 } },
+            { id: 'sally', name: "Sally", role: "Designer", image: 'Sally (1).png', x: 90, y: 68, desk: 'PA (1).png', bio: "Se a cor estiver 1 tom de hex fora do padrão, ela vai notar e chorar sangue.", stats: { "Estética": 99, "Figma": 95, "Paciência PMs": 10 } }
         ];
 
         const workspacesLayer = document.getElementById('workspaces-layer');
@@ -360,6 +436,62 @@
             nextChar();
         }
 
+        // --- POKEDEX MODAL ---
+        let pkTypeInterval = null;
+        function renderStatBar(val) {
+            const totalBlocks = 10;
+            const filledBlocks = Math.round((val / 100) * totalBlocks);
+            return '█'.repeat(filledBlocks) + '░'.repeat(totalBlocks - filledBlocks);
+        }
+        
+        function closePokedex() {
+            document.getElementById('pokedex-overlay').classList.remove('active');
+            clearInterval(pkTypeInterval);
+            sfx.statusChange('waiting'); // feedback sonoro de fechar
+        }
+
+        function showPokedex(id) {
+            const agent = agentsData.find(a => a.id === id);
+            if (!agent) return;
+            
+            document.getElementById('pk-name-text').textContent = agent.name;
+            document.getElementById('pk-role-text').textContent = agent.role;
+            document.getElementById('pk-sprite-img').style.backgroundImage = `url('assets/${agent.image}')`;
+            
+            const statsHtml = Object.entries(agent.stats).map(([key, val]) => `
+                <div class="pk-stat-row">
+                    <span>${key}</span>
+                    <span class="pk-stat-bar">${renderStatBar(val)}</span>
+                </div>
+            `).join('');
+            document.getElementById('pk-stats-container').innerHTML = statsHtml;
+            
+            const bioContainer = document.getElementById('pk-bio-text');
+            bioContainer.textContent = '';
+            clearInterval(pkTypeInterval);
+            let i = 0;
+            
+            document.getElementById('pokedex-overlay').classList.add('active');
+            
+            // Inicia o typewriter depois da animação do modal
+            setTimeout(() => {
+                pkTypeInterval = setInterval(() => {
+                    if (i < agent.bio.length) {
+                        bioContainer.textContent += agent.bio[i];
+                        sfx.typeBlip();
+                        i++;
+                    } else {
+                        clearInterval(pkTypeInterval);
+                    }
+                }, 35);
+            }, 200);
+        }
+
+        // Fechar ao clicar fora do card
+        document.getElementById('pokedex-overlay').addEventListener('click', (e) => {
+            if(e.target.id === 'pokedex-overlay') closePokedex();
+        });
+
         function initScene() {
             agentsData.forEach(a => {
                 const workspace = document.createElement('div');
@@ -372,8 +504,16 @@
                 desk.style.backgroundImage = `url('assets/${a.desk}')`;
 
                 const agentEl = document.createElement('div');
-                agentEl.className = `agent ${a.id}`;
+                agentEl.className = `agent ${a.id} agent-clickable`;
                 agentEl.style.backgroundImage = `url('assets/${a.image}')`;
+                
+                agentEl.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    agentEl.classList.add('hit-flash');
+                    sfx.typeBlip();
+                    setTimeout(() => agentEl.classList.remove('hit-flash'), 150);
+                    showPokedex(a.id);
+                });
                 
                 const uiLayer = document.createElement('div');
                 uiLayer.className = 'agent-ui-layer';

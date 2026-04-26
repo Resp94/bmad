@@ -679,29 +679,35 @@
         initScene();
 
         // ── MODOS DE VISUALIZACAO ──
+        // Maximizar: expande o game na area do navegador (esconde chat, mantem barra de endereco)
         document.getElementById('btn-maximize').addEventListener('click', () => {
             document.body.classList.toggle('maximized');
             const btn = document.getElementById('btn-maximize');
             const isMax = document.body.classList.contains('maximized');
             btn.classList.toggle('active', isMax);
-            btn.textContent = isMax ? '🔳' : '🔲';
-            btn.title = isMax ? 'Restaurar tamanho original' : 'Maximizar no navegador';
+            btn.title = isMax ? 'Restaurar layout original' : 'Expandir na aba do navegador';
         });
 
+        // Tela Cheia: F11 real — esconde barra de endereco, taskbar, tudo
         document.getElementById('btn-fullscreen').addEventListener('click', () => {
             if (!document.fullscreenElement) {
+                // Entrar em tela cheia: maximiza automaticamente tambem
+                if (!document.body.classList.contains('maximized')) {
+                    document.getElementById('btn-maximize').click();
+                }
                 document.documentElement.requestFullscreen().catch(() => {});
             } else {
                 document.exitFullscreen().catch(() => {});
             }
         });
 
+        // Quando sai do fullscreen (ESC ou clique), restaura tudo
         document.addEventListener('fullscreenchange', () => {
             const btn = document.getElementById('btn-fullscreen');
             const isFull = !!document.fullscreenElement;
             btn.classList.toggle('active', isFull);
-            btn.title = isFull ? 'Sair da tela cheia' : 'Tela cheia';
-            if (isFull && !document.body.classList.contains('maximized')) {
+            // Ao sair do fullscreen, tambem restaura o layout original
+            if (!isFull && document.body.classList.contains('maximized')) {
                 document.getElementById('btn-maximize').click();
             }
         });
